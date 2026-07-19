@@ -12,7 +12,15 @@ Worker binding name:
 UPLOADS
 ```
 
-## Create the bucket
+This project uses R2 for both metadata and large uploaded files:
+
+```text
+app/firmware.json
+app/options.json
+app/users.json
+app/sessions/*
+uploads/*
+```
 
 Run:
 
@@ -20,28 +28,16 @@ Run:
 .\create_r2_bucket.cmd
 ```
 
-If Wrangler asks you to log in, complete the Cloudflare browser login. If Cloudflare asks you to enable R2, go to:
+Then import the original upload files:
+
+```powershell
+.\migrate_uploads_to_r2.cmd
+```
+
+If Cloudflare asks you to enable R2, go to:
 
 ```text
 Storage & databases -> R2 -> Overview
 ```
 
-Complete the R2 checkout/subscription flow. R2 has free included monthly usage, but Cloudflare may still require billing setup.
-
-## Bind the bucket to the Worker
-
-In Cloudflare Dashboard:
-
-```text
-Workers & Pages -> a014-my-open-web -> Settings -> Bindings -> Add binding
-```
-
-Use:
-
-```text
-Binding type: R2 bucket
-Variable name: UPLOADS
-Bucket: a014-my-open-web-uploads
-```
-
-This gives Worker code access to the bucket as `env.UPLOADS`.
+R2 has free included monthly usage, but Cloudflare may still require billing setup.

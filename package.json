@@ -1,12 +1,12 @@
 {
-  "name": "my-open-web",
+  "name": "firmware-manage-web-public",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "assets": "node scripts/create-hero-asset.mjs",
-    "build": "node scripts/build-check.mjs",
+    "build": "node scripts/build-check.mjs && node --check src/worker.js && node --check public/app.js",
     "check": "npm run build",
-    "dev": "npx wrangler pages dev public"
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy"
   }
 }

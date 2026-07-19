@@ -38,6 +38,8 @@ echo Binding type: R2 bucket
 echo Variable name: UPLOADS
 echo Bucket: %BUCKET_NAME%
 echo.
+echo Then run migrate_uploads_to_r2.cmd to move the zip package's uploads/ files into R2.
+echo.
 pause
 exit /b 0
 
