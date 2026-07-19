@@ -35,6 +35,46 @@
         />
       </section>
 
+      <section class="tetris-panel" aria-labelledby="tetris-title">
+        <div class="tetris-head">
+          <div>
+            <span class="label">Play</span>
+            <h2 id="tetris-title">Online Tetris</h2>
+          </div>
+          <div class="tetris-stats" aria-label="Game stats">
+            <span>Score <strong id="tetris-score">0</strong></span>
+            <span>Lines <strong id="tetris-lines">0</strong></span>
+            <span>Level <strong id="tetris-level">1</strong></span>
+          </div>
+        </div>
+        <div class="tetris-stage">
+          <canvas
+            id="tetris-board"
+            width="240"
+            height="480"
+            aria-label="Online Tetris game board"
+          ></canvas>
+          <div class="tetris-side">
+            <div class="next-piece" aria-label="Next piece preview">
+              <span class="label">Next</span>
+              <canvas id="tetris-next" width="96" height="96"></canvas>
+            </div>
+            <div class="game-buttons" aria-label="Game commands">
+              <button class="button primary" type="button" id="tetris-start">Start</button>
+              <button class="button" type="button" id="tetris-pause">Pause</button>
+              <button class="button" type="button" id="tetris-reset">Reset</button>
+            </div>
+            <div class="touch-controls" aria-label="Touch controls">
+              <button type="button" data-move="left" aria-label="Move left">&larr;</button>
+              <button type="button" data-move="rotate" aria-label="Rotate">&uarr;</button>
+              <button type="button" data-move="right" aria-label="Move right">&rarr;</button>
+              <button type="button" data-move="down" aria-label="Move down">&darr;</button>
+              <button type="button" data-move="drop" aria-label="Hard drop">Drop</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="status" aria-label="Deployment status">
         <div>
           <span class="label">Build</span>

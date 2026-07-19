@@ -16,4 +16,8 @@ if (!html.includes("<main") || !html.includes("</html>")) {
   throw new Error("public/index.html does not look like a complete HTML page.");
 }
 
+if (!html.includes("tetris-board")) {
+  throw new Error("public/index.html is missing the Tetris game board.");
+}
+
 console.log("Static site check passed.");
