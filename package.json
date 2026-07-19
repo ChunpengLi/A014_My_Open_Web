@@ -1,0 +1,12 @@
+{
+  "name": "my-open-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "assets": "node scripts/create-hero-asset.mjs",
+    "build": "node scripts/build-check.mjs",
+    "check": "npm run build",
+    "dev": "npx wrangler pages dev public"
+  }
+}

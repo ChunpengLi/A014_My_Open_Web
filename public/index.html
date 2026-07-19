@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="My Open Web - a small first public website deployed with GitHub and Cloudflare Pages."
+    />
+    <title>My Open Web</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <script defer src="assets/app.js"></script>
+  </head>
+  <body>
+    <main class="page-shell" aria-labelledby="site-title">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Hello, public web</p>
+          <h1 id="site-title">My Open Web</h1>
+          <p class="lead">
+            This is my first public website. It is intentionally simple, fast, and ready for automatic deployment.
+          </p>
+          <div class="actions" aria-label="Page actions">
+            <a class="button primary" href="https://www.cloudflare.com/" rel="noreferrer">Cloudflare</a>
+            <a class="button" href="https://github.com/" rel="noreferrer">GitHub</a>
+          </div>
+        </div>
+        <img
+          class="hero-image"
+          src="assets/hero.png"
+          alt="A simple website shown on a laptop"
+          width="1200"
+          height="720"
+        />
+      </section>
+
+      <section class="status" aria-label="Deployment status">
+        <div>
+          <span class="label">Build</span>
+          <strong>Static HTML</strong>
+        </div>
+        <div>
+          <span class="label">Deploy</span>
+          <strong>Cloudflare Pages</strong>
+        </div>
+        <div>
+          <span class="label">Updated</span>
+          <strong id="updated-date">Ready</strong>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
