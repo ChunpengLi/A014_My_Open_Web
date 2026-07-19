@@ -7,6 +7,11 @@
     "assets": "node scripts/create-hero-asset.mjs",
     "build": "node scripts/build-check.mjs",
     "check": "npm run build",
-    "dev": "npx wrangler pages dev public"
+    "dev": "npx wrangler pages dev public",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.112.0"
   }
 }
