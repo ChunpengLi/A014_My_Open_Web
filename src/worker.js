@@ -6,7 +6,7 @@ const SESSION_PREFIX = "app/sessions/";
 const UPLOAD_PREFIX = "uploads/";
 const SESSION_COOKIE = "fm_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
-const PASSWORD_ITERATIONS = 120000;
+const PASSWORD_ITERATIONS = 100000;
 const ARCHIVE_EXTENSIONS = new Set([".zip", ".rar", ".7z"]);
 
 const CATEGORY_LABELS = {
