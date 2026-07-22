@@ -7,6 +7,11 @@
     "directory": "./public",
     "binding": "ASSETS"
   },
+  "vars": {
+    "ANTHROPIC_BASE_URL": "https://hyueapi.com",
+    "AI_MODEL": "claude-sonnet-4-5-20250929",
+    "AI_MAX_TOKENS": "2048"
+  },
   "r2_buckets": [
     {
       "binding": "UPLOADS",

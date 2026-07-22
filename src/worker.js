@@ -8,6 +8,11 @@ const SESSION_COOKIE = "fm_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const PASSWORD_ITERATIONS = 100000;
 const ARCHIVE_EXTENSIONS = new Set([".zip", ".rar", ".7z"]);
+const AI_DEFAULT_BASE_URL = "https://api.anthropic.com";
+const AI_DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+const AI_DEFAULT_MAX_TOKENS = 2048;
+const AI_MAX_MESSAGE_TURNS = 20;
+const AI_MAX_MESSAGE_CHARS = 12000;
 
 const CATEGORY_LABELS = {
   firmware: "固件",
@@ -97,10 +102,10 @@ async function handleApiUnsafe(request, env) {
     return json({ message: "公网版本不支持页面内自升级，请提交代码到 GitHub 触发 Cloudflare 部署。" }, 400);
   }
   if (url.pathname === "/api/ai/status" && method === "GET") {
-    return json({ configured: false, model: "", message: "公网版本暂未配置 AI。" });
+    return aiStatus(env);
   }
   if (url.pathname === "/api/ai/chat" && method === "POST") {
-    return eventStream("AI 功能暂未配置。");
+    return aiChat(request, env);
   }
   if (url.pathname === "/api/ai/export/docx" && method === "POST") {
     return json({ message: "公网版本暂未配置 DOCX 导出。" }, 501);
@@ -395,6 +400,198 @@ async function updateOptions(request, env) {
   };
   await putJson(env, OPTIONS_KEY, next);
   return json({ ok: true, options: next, changes: { affectedRecords: 0 } });
+}
+
+async function aiStatus(env) {
+  const config = aiConfig(env);
+  return json({
+    configured: Boolean(config),
+    model: config?.model || env.AI_MODEL || AI_DEFAULT_MODEL,
+    maxTokens: config?.maxTokens || Number(env.AI_MAX_TOKENS || AI_DEFAULT_MAX_TOKENS),
+    recordCount: (await getRecords(env)).length,
+  });
+}
+
+async function aiChat(request, env) {
+  const config = aiConfig(env);
+  if (!config) {
+    return json({ message: "AI 未配置：请先把 ANTHROPIC_AUTH_TOKEN 写入 Cloudflare Secret。" }, 503);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const messages = normalizeAiMessages(body.messages);
+  if (!messages.length || messages[messages.length - 1].role !== "user") {
+    return json({ message: "请输入要提问的内容。" }, 400);
+  }
+
+  const upstream = await fetch(`${config.baseUrl}/v1/messages`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": config.authToken,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: config.model,
+      max_tokens: config.maxTokens,
+      stream: true,
+      system: await buildAiSystemPrompt(env),
+      messages,
+    }),
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    const errorText = await upstream.text().catch(() => "");
+    return eventStream(`AI 助手返回错误（HTTP ${upstream.status}）：${aiSliceError(errorText) || upstream.statusText}`);
+  }
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let newlineIndex;
+          while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
+            const rawLine = buffer.slice(0, newlineIndex);
+            buffer = buffer.slice(newlineIndex + 1);
+            const line = rawLine.replace(/\r$/, "").trim();
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+            const parsed = parseJson(payload, null);
+            if (parsed?.type === "content_block_delta" && typeof parsed.delta?.text === "string") {
+              enqueueSse(controller, "delta", { text: parsed.delta.text });
+            } else if (parsed?.type === "error" && parsed.error) {
+              enqueueSse(controller, "error", { message: parsed.error.message || "AI 助手返回错误。" });
+            }
+          }
+        }
+        enqueueSse(controller, "done", {});
+      } catch (error) {
+        enqueueSse(controller, "error", { message: `AI 请求失败：${error?.message || String(error)}` });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+function aiConfig(env) {
+  const authToken = text(env.ANTHROPIC_AUTH_TOKEN);
+  if (!authToken) return null;
+  const maxTokens = Number(env.AI_MAX_TOKENS || AI_DEFAULT_MAX_TOKENS);
+  return {
+    authToken,
+    baseUrl: text(env.ANTHROPIC_BASE_URL || AI_DEFAULT_BASE_URL).replace(/\/+$/, ""),
+    model: text(env.AI_MODEL || AI_DEFAULT_MODEL),
+    maxTokens: Number.isFinite(maxTokens) && maxTokens > 0 ? maxTokens : AI_DEFAULT_MAX_TOKENS,
+  };
+}
+
+async function buildAiSystemPrompt(env) {
+  const [records, options] = await Promise.all([getRecords(env), getOptions(env)]);
+  const context = JSON.stringify(sortRecords(records).map(compactAiRecord));
+  const optionsContext = JSON.stringify({
+    软件名称可选项: options.softwareNames,
+    机型可选项: options.models,
+    适用场景可选项: options.scenarios,
+    运行模式可选项: options.gridModes,
+  });
+  return [
+    "你是“固件与软件包管理系统”内置的 AI 助手，只基于系统中已登记的固件与软件记录作答。",
+    "严格依据 <repository> 内的 JSON 记录，不要编造不存在的机型、版本、文件或日期。",
+    "当用户问“最新/最近”时，以记录里的启用日期排序。",
+    "回答全部使用中文，优先使用简洁要点列表，避免 Markdown 表格。",
+    "涉及具体记录时，给出适用机型、版本号、启用日期、文件名等关键字段，方便核对与下载。",
+    "如果用户想下载文件，请单独输出一行下载标记：[[DOWNLOAD id=\"记录id\" name=\"显示名\"]]。id 必须来自 repository，不要自己编造。",
+    "如果问题超出已登记记录范围，请明确说明系统中没有对应资料，并建议去管理页面补充记录。",
+    "",
+    `<repository>\n${context}\n</repository>`,
+    "",
+    `<options>\n${optionsContext}\n</options>`,
+  ].join("\n");
+}
+
+function compactAiRecord(record) {
+  if (record.category === "software") {
+    return {
+      id: record.id,
+      类别: "软件",
+      软件名称: record.softwareName,
+      版本号: record.version,
+      适用机型: record.model,
+      适用场景: record.scenario,
+      启用日期: record.enableDate,
+      说明: record.description,
+      文件名: record.originalFileName || record.fileName,
+      源码SVN: record.sourceSvn,
+    };
+  }
+  return {
+    id: record.id,
+    类别: "固件",
+    适用机型: record.model,
+    适用场景: record.scenario,
+    CPU1: record.cpu1Version,
+    CPU2: record.cpu2Version,
+    FPGA: record.fpgaVersion,
+    ARM: record.armVersion,
+    运行模式: record.gridMode,
+    启用日期: record.enableDate,
+    适用单机版本: record.applicableSingleVersion,
+    适用多机版本: record.applicableMultiVersion,
+    适用自动化版本: record.applicableAutomationVersion,
+    说明: record.description,
+    文件名: record.originalFileName || record.fileName,
+  };
+}
+
+function normalizeAiMessages(incoming) {
+  if (!Array.isArray(incoming)) return [];
+  const cleaned = [];
+  for (const item of incoming) {
+    const role = item?.role === "assistant" ? "assistant" : "user";
+    const content = text(item?.content).slice(0, AI_MAX_MESSAGE_CHARS);
+    if (!content) continue;
+    const last = cleaned[cleaned.length - 1];
+    if (last?.role === role) {
+      last.content = `${last.content}\n${content}`.slice(0, AI_MAX_MESSAGE_CHARS);
+    } else {
+      cleaned.push({ role, content });
+    }
+    if (cleaned.length >= AI_MAX_MESSAGE_TURNS) break;
+  }
+  while (cleaned.length && cleaned[0].role !== "user") cleaned.shift();
+  return cleaned;
+}
+
+function enqueueSse(controller, event, data) {
+  controller.enqueue(utf8(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+}
+
+function aiSliceError(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 400);
+}
+
+function parseJson(value, fallback) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 }
 
 function buildRecordFromForm(form, existing = {}) {
