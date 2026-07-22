@@ -31,6 +31,18 @@ export default {
 };
 
 async function handleApi(request, env) {
+  try {
+    return await handleApiUnsafe(request, env);
+  } catch (error) {
+    console.error("API error", error);
+    return json({
+      message: "后端接口运行失败",
+      error: error?.message || String(error),
+    }, 500);
+  }
+}
+
+async function handleApiUnsafe(request, env) {
   if (!env.UPLOADS) {
     return json({ message: `R2 bucket binding UPLOADS is missing. Expected bucket: ${BUCKET_NAME}` }, 500);
   }
