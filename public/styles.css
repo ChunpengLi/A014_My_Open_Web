@@ -95,6 +95,7 @@ body {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 10px;
+  margin-left: auto;
 }
 
 .auth-user-bar span {

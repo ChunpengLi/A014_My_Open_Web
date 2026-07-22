@@ -34,7 +34,9 @@ const state = {
   },
   auth: {
     user: null,
-    eventsBound: false
+    eventsBound: false,
+    appEventsBound: false,
+    appReady: false
   }
 };
 
@@ -1725,6 +1727,8 @@ function bindAiEvents() {
 }
 
 function bindEvents() {
+  if (state.auth.appEventsBound) return;
+  state.auth.appEventsBound = true;
   bindPageEvents("firmware");
   bindPageEvents("software");
   bindCalendarEvents();
@@ -1773,6 +1777,8 @@ function showAuthMode(mode) {
   document.querySelector("#registerForm").hidden = !isRegister;
   document.querySelector("#authLoginTab").classList.toggle("active", !isRegister);
   document.querySelector("#authRegisterTab").classList.toggle("active", isRegister);
+  document.querySelector("#authLoginTab").setAttribute("aria-selected", String(!isRegister));
+  document.querySelector("#authRegisterTab").setAttribute("aria-selected", String(isRegister));
   setAuthStatus("");
 }
 
@@ -1788,11 +1794,13 @@ function bindAuthEvents() {
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     setAuthStatus("正在登录...");
     try {
-      await authJson("/api/auth/login", {
+      const result = await authJson("/api/auth/login", {
         method: "POST",
         body: JSON.stringify(data)
       });
-      window.location.reload();
+      state.auth.user = result.user || null;
+      await enterMainApp("firmware");
+      event.currentTarget.reset();
     } catch (error) {
       setAuthStatus(error.message, true);
     }
@@ -1817,7 +1825,13 @@ function bindAuthEvents() {
 
   document.querySelector("#logoutButton")?.addEventListener("click", async () => {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    window.location.reload();
+    state.auth.user = null;
+    state.ai.busy = false;
+    if (state.ai.controller) state.ai.controller.abort();
+    closePendingUsersDialog();
+    applyAuthUi(null);
+    showAuthMode("login");
+    setAuthStatus("已退出登录。");
   });
 
   document.querySelector("#pendingUsersButton")?.addEventListener("click", openPendingUsersDialog);
@@ -1842,6 +1856,32 @@ function applyAuthUi(user) {
 
   gate.hidden = false;
   shell.hidden = true;
+  bar.hidden = true;
+  name.textContent = "";
+  pendingButton.hidden = true;
+}
+
+async function enterMainApp(defaultPage = "") {
+  applyAuthUi(state.auth.user);
+  if (!state.auth.appReady) {
+    await loadMeta();
+    bindEvents();
+    setDefaultEnableDate(selectors.firmware.form);
+    setDefaultEnableDate(selectors.software.form);
+    await Promise.all([
+      loadRecords("firmware"),
+      loadRecords("software"),
+      loadCalendarRecords(),
+      loadAiStatus().catch(() => {})
+    ]);
+    state.auth.appReady = true;
+  }
+
+  const page = defaultPage || resolvePageFromHash();
+  if (defaultPage && window.location.hash !== `#${defaultPage}`) {
+    window.history.replaceState(null, "", `#${defaultPage}`);
+  }
+  setActivePage(page);
 }
 
 async function ensureAuthenticated() {
@@ -1901,17 +1941,7 @@ function closePendingUsersDialog() {
 async function init() {
   const authenticated = await ensureAuthenticated();
   if (!authenticated) return;
-  await loadMeta();
-  bindEvents();
-  setDefaultEnableDate(selectors.firmware.form);
-  setDefaultEnableDate(selectors.software.form);
-  await Promise.all([
-    loadRecords("firmware"),
-    loadRecords("software"),
-    loadCalendarRecords(),
-    loadAiStatus().catch(() => {})
-  ]);
-  setActivePage(resolvePageFromHash());
+  await enterMainApp();
 }
 
 init().catch((error) => {

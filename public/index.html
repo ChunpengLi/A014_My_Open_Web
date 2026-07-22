@@ -14,8 +14,8 @@
         <h1>固件管理系统登录</h1>
         <p class="auth-copy">请使用姓名全拼和密码登录。新用户注册后，需要管理员审批。</p>
         <div class="auth-tabs" role="tablist" aria-label="登录或注册">
-          <button id="authLoginTab" class="active" type="button">登录</button>
-          <button id="authRegisterTab" type="button">注册申请</button>
+          <button id="authLoginTab" class="active" type="button" aria-selected="true">登录</button>
+          <button id="authRegisterTab" type="button" aria-selected="false">注册申请</button>
         </div>
         <form id="loginForm" class="auth-form">
           <label>
@@ -43,7 +43,7 @@
       </div>
     </section>
 
-    <main class="app-shell">
+    <main class="app-shell" hidden>
       <section class="topbar">
         <div>
           <p class="eyebrow">Firmware & Software Repository</p>
