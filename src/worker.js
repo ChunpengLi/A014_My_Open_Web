@@ -37,7 +37,6 @@ async function handleApi(request, env) {
     console.error("API error", error);
     return json({
       message: "后端接口运行失败",
-      error: error?.message || String(error),
     }, 500);
   }
 }
