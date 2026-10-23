@@ -1,5 +1,5 @@
 /* A002 注册码生成器 · 极简离线缓存（作用域 /reg/） */
-const CACHE = "a002-reg-v1";
+const CACHE = "a002-reg-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
