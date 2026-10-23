@@ -46,6 +46,24 @@ export default {
       return env.ASSETS.fetch(request);
     }
 
+    // /Resp —— 固件与软件包管理系统（映射到根路径资源，前端无需改动）
+    if (lowerPath === "/resp" || lowerPath.startsWith("/resp/")) {
+      if (lowerPath === "/resp") {
+        const target = new URL("/resp/", request.url);
+        target.search = url.search;
+        return Response.redirect(target.toString(), 301);
+      }
+      const rest = url.pathname.slice(5);
+      if (rest === "/seed" || rest.startsWith("/seed/")) {
+        return json({ message: "Not found" }, 404);
+      }
+      const target = new URL((rest || "/") + url.search, request.url);
+      if (rest === "/api" || rest.startsWith("/api/")) {
+        return handleApi(new Request(target.toString(), request), env);
+      }
+      return env.ASSETS.fetch(new Request(target.toString(), request));
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
