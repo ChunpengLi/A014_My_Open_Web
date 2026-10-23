@@ -31,6 +31,21 @@ export default {
       return json({ message: "Not found" }, 404);
     }
 
+    // /Reg —— A002 注册码生成器（静态，public/reg/）
+    const lowerPath = url.pathname.toLowerCase();
+    if (lowerPath === "/reg" || lowerPath.startsWith("/reg/")) {
+      if (lowerPath === "/reg") {
+        const target = new URL("/reg/", request.url);
+        target.search = url.search;
+        return Response.redirect(target.toString(), 301);
+      }
+      if (url.pathname !== lowerPath) {
+        const target = new URL(lowerPath + url.search, request.url);
+        return env.ASSETS.fetch(new Request(target.toString(), request));
+      }
+      return env.ASSETS.fetch(request);
+    }
+
     return env.ASSETS.fetch(request);
   },
 };

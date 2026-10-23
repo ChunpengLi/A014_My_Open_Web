@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>注册码生成器</title>
+<meta name="description" content="UARTGrapher 注册码生成器 · 纯本地运行">
+<!-- iOS 添加到主屏幕 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="注册码">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="theme-color" content="#EEF1F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E13" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+  :root{
+    --bg:#EEF1F7; --card:#FFFFFF; --card-border:rgba(15,23,42,.06);
+    --field:rgba(16,24,40,.045); --field-focus:rgba(78,107,255,.10);
+    --text:#101828; --text-2:#667085; --text-3:#98A2B3;
+    --accent:#4E6BFF; --accent-2:#7A5CFF; --accent-soft:#EDF0FF; --accent-text:#3D5BE0;
+    --ok:#12B76A; --ok-soft:#E8F8F0; --danger:#E5484D; --danger-soft:#FEECEC;
+    --r-lg:24px; --r-md:16px; --r-sm:12px;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px -14px rgba(16,24,40,.14);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0C0E13; --card:#151821; --card-border:rgba(255,255,255,.07);
+      --field:rgba(255,255,255,.06); --field-focus:rgba(110,132,255,.14);
+      --text:#F2F4F8; --text-2:#98A2B3; --text-3:#5D6470;
+      --accent:#6E84FF; --accent-2:#9A7BFF; --accent-soft:rgba(110,132,255,.16); --accent-text:#9DAFFF;
+      --ok:#34C98B; --ok-soft:rgba(52,201,139,.14); --danger:#FF6B6E; --danger-soft:rgba(255,107,110,.13);
+      --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 32px -14px rgba(0,0,0,.55);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh;
+    touch-action:manipulation;
+    transition:background .25s;
+  }
+  .wrap{
+    max-width:520px; margin:0 auto;
+    padding:calc(env(safe-area-inset-top) + 18px) 18px calc(env(safe-area-inset-bottom) + 28px);
+  }
+  /* ---------- 头部 ---------- */
+  header{display:flex;align-items:center;gap:12px;margin:2px 2px 18px}
+  .logo{
+    width:44px;height:44px;border-radius:14px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 16px -6px rgba(78,107,255,.55);
+  }
+  .logo svg{width:24px;height:24px}
+  h1{font-size:20px;font-weight:700;letter-spacing:.2px}
+  .sub{font-size:12.5px;color:var(--text-3);margin-top:2px}
+  /* ---------- 分段标签 ---------- */
+  .seg{
+    position:relative;display:flex;background:var(--field);
+    border-radius:14px;padding:4px;margin-bottom:16px;
+  }
+  .seg-thumb{
+    position:absolute;top:4px;left:4px;width:calc(50% - 4px);height:calc(100% - 8px);
+    background:var(--card);border-radius:11px;box-shadow:var(--shadow);
+    transition:transform .28s cubic-bezier(.3,.9,.3,1);
+  }
+  .seg[data-tab="1"] .seg-thumb{transform:translateX(100%)}
+  .seg button{
+    position:relative;z-index:1;flex:1;height:40px;border:0;background:none;
+    font:inherit;font-size:15px;font-weight:600;color:var(--text-2);
+    border-radius:11px;cursor:pointer;transition:color .2s;
+  }
+  .seg button.on{color:var(--text)}
+  /* ---------- 卡片与表单 ---------- */
+  .card{
+    background:var(--card);border:1px solid var(--card-border);
+    border-radius:var(--r-lg);box-shadow:var(--shadow);
+    padding:20px 18px;margin-bottom:14px;
+  }
+  .page{display:none}
+  .page.on{display:block;animation:fadeUp .3s cubic-bezier(.3,.9,.3,1)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .field{margin-bottom:16px}
+  .field:last-child{margin-bottom:0}
+  label{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;color:var(--text-2);margin:0 2px 8px}
+  label .hint{font-size:12px;font-weight:400;color:var(--text-3)}
+  .inputbox{
+    display:flex;align-items:center;gap:8px;
+    background:var(--field);border:1.5px solid transparent;border-radius:var(--r-md);
+    padding:0 12px;height:52px;transition:border-color .2s, background .2s;
+  }
+  .inputbox:focus-within{border-color:var(--accent);background:var(--field-focus)}
+  .inputbox.bad{border-color:var(--danger)}
+  .inputbox.good{border-color:var(--ok)}
+  input,textarea{
+    font:inherit;font-size:16px;color:var(--text);background:none;border:0;outline:0;width:100%;height:100%;
+  }
+  input::placeholder,textarea::placeholder{color:var(--text-3)}
+  .mono{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+  .mc-input{letter-spacing:.4px;text-transform:uppercase}
+  .mini-btn{
+    flex:none;border:0;background:none;color:var(--text-3);font:inherit;font-size:13px;
+    height:32px;min-width:32px;padding:0 6px;border-radius:9px;cursor:pointer;
+  }
+  .mini-btn:active{background:var(--field)}
+  .count{flex:none;font-size:12px;color:var(--text-3);font-variant-numeric:tabular-nums}
+  /* 角色选择 */
+  .roles{display:flex;gap:8px}
+  .roles button{
+    flex:1;height:46px;border:1.5px solid transparent;background:var(--field);
+    font:inherit;font-size:15px;font-weight:600;color:var(--text-2);
+    border-radius:var(--r-md);cursor:pointer;transition:all .18s;
+  }
+  .roles button.on{background:var(--accent-soft);color:var(--accent-text);border-color:var(--accent)}
+  /* 日期快捷 */
+  .chips{display:flex;gap:8px;margin-top:10px}
+  .chips button{
+    border:1px solid var(--card-border);background:none;color:var(--text-2);
+    font:inherit;font-size:13px;font-weight:500;padding:7px 14px;border-radius:999px;cursor:pointer;
+  }
+  .chips button:active{background:var(--field)}
+  input[type="date"]{min-width:0}
+  input[type="date"]::-webkit-calendar-picker-indicator{opacity:.45}
+  /* ---------- 主按钮 ---------- */
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    height:52px;border:0;border-radius:var(--r-md);font:inherit;font-size:16.5px;font-weight:600;
+    cursor:pointer;transition:transform .12s, opacity .2s;
+  }
+  .btn:active{transform:scale(.975)}
+  .btn-primary{color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 8px 20px -8px rgba(78,107,255,.6)}
+  .btn-ghost{background:var(--field);color:var(--text)}
+  .btn-row{display:flex;gap:10px;margin-top:14px}
+  .btn-row .btn{margin-top:0}
+  /* ---------- 结果 ---------- */
+  .result{display:none}
+  .result.on{display:block;animation:fadeUp .35s cubic-bezier(.3,.9,.3,1)}
+  .file-line{display:flex;align-items:center;gap:8px;margin-bottom:12px;min-width:0}
+  .file-name{
+    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:var(--text-2);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left;
+  }
+  .badge{
+    flex:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:7px;
+    background:var(--accent-soft);color:var(--accent-text);letter-spacing:.3px;
+  }
+  .cipher{
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:13px;line-height:1.7;word-break:break-all;
+    background:var(--field);border-radius:var(--r-sm);padding:14px;
+    max-height:170px;overflow:auto;color:var(--text);user-select:all;-webkit-user-select:all;
+  }
+  /* ---------- 解密结果 ---------- */
+  .kv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--card-border)}
+  .kv:last-child{border-bottom:0}
+  .kv .k{flex:none;font-size:13.5px;color:var(--text-2);font-weight:500}
+  .kv .v{font-size:14.5px;font-weight:600;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;-webkit-user-select:all}
+  .pill{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .pill.gray{background:var(--field);color:var(--text-2)}
+  .pill.blue{background:var(--accent-soft);color:var(--text)}
+  .pill.violet{background:rgba(138,92,246,.14);color:#8A5CF6}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)}
+  .pill.no{background:var(--danger-soft);color:var(--danger)}
+  @media (prefers-color-scheme: dark){ .pill.violet{color:#B79BFF} }
+  .err-box{
+    display:none;background:var(--danger-soft);color:var(--danger);
+    border-radius:var(--r-sm);padding:13px 14px;font-size:13.5px;font-weight:500;margin-bottom:14px;
+  }
+  .err-box.on{display:block;animation:fadeUp .25s}
+  /* ---------- 浮层提示 ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 34px);transform:translateX(-50%) translateY(16px);
+    background:rgba(16,24,40,.92);color:#fff;font-size:13.5px;font-weight:500;
+    padding:11px 20px;border-radius:999px;opacity:0;pointer-events:none;
+    transition:all .3s cubic-bezier(.3,.9,.3,1);z-index:99;white-space:nowrap;
+  }
+  #toast.on{opacity:1;transform:translateX(-50%)}
+  footer{text-align:center;font-size:12px;color:var(--text-3);margin-top:6px}
+  textarea.t{
+    background:var(--field);border:1.5px solid transparent;border-radius:var(--r-md);
+    padding:13px 14px;width:100%;height:118px;resize:none;font-size:14px;line-height:1.6;
+  }
+  textarea.t:focus{border-color:var(--accent);background:var(--field-focus);outline:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M14.5 10.5a4 4 0 1 0-3.9-4.9h-.02A4.01 4.01 0 0 0 7 9.5c0 .86.27 1.66.73 2.31L3.5 16.04V20.5H8l1-1v-2h2l1.2-1.2v-1.6l2.1-2.1c.06 0 .13.01.2.01a4 4 0 0 0 0-.11Z" fill="#fff" opacity=".95"/></svg>
+    </div>
+    <div>
+      <h1>注册码生成器</h1>
+      <div class="sub">UARTGrapher · 纯本地运行，数据不出设备</div>
+    </div>
+  </header>
+
+  <nav class="seg" id="seg" data-tab="0">
+    <div class="seg-thumb"></div>
+    <button class="on" data-i="0">生成</button>
+    <button data-i="1">解密</button>
+  </nav>
+
+  <!-- ================= 生成 ================= -->
+  <section class="page on" id="page-gen">
+    <div class="card">
+      <div class="field">
+        <label>机器码 <span class="hint" id="mc-hint">32 位</span></label>
+        <div class="inputbox" id="mc-box">
+          <input id="mc" class="mono mc-input" placeholder="粘贴上位机显示的机器码" autocomplete="off" spellcheck="false" autocapitalize="characters">
+          <button class="mini-btn" id="mc-paste" title="粘贴">粘贴</button>
+          <button class="mini-btn" id="mc-clear" title="清空" style="display:none">✕</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>权限</label>
+        <div class="roles" id="roles">
+          <button class="on">访客</button>
+          <button>工程师</button>
+          <button>管理员</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>有效期至 <span class="hint" id="exp-hint"></span></label>
+        <div class="inputbox"><input type="date" id="exp"></div>
+        <div class="chips" id="chips">
+          <button data-m="3">+3 个月</button>
+          <button data-m="6">+6 个月</button>
+          <button data-m="12">+1 年</button>
+          <button data-m="36">+3 年</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>用户名 <span class="hint">仅用于文件命名</span></label>
+        <div class="inputbox"><input id="user" placeholder="如：张三" autocomplete="off"></div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="gen">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" fill="#fff"/></svg>
+      生成注册码
+    </button>
+
+    <div class="result" id="result">
+      <div class="card" style="margin-top:14px">
+        <div class="file-line">
+          <span class="badge">LIC</span>
+          <div class="file-name" id="file-name"></div>
+        </div>
+        <div class="cipher" id="cipher"></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="copy">复制密钥</button>
+          <button class="btn btn-primary" id="download">下载 .lic</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 解密 ================= -->
+  <section class="page" id="page-dec">
+    <div class="card">
+      <div class="field">
+        <label>密文 <span class="hint">十六进制文本或 .lic 文件</span></label>
+        <textarea class="t mono" id="dec-input" placeholder="粘贴注册码密文…" spellcheck="false" autocapitalize="off"></textarea>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-ghost" id="dec-file">导入 .lic 文件</button>
+          <button class="btn btn-primary" id="dec-go">解密</button>
+        </div>
+      </div>
+      <input type="file" id="file" accept=".lic,.txt" style="display:none">
+    </div>
+
+    <div class="err-box" id="dec-err"></div>
+
+    <div class="result" id="dec-result">
+      <div class="card">
+        <div class="kv"><span class="k">机器码</span><span class="v mono" id="d-mc"></span></div>
+        <div class="kv"><span class="k">权限</span><span class="v"><span class="pill" id="d-role"></span></span></div>
+        <div class="kv"><span class="k">有效期至</span><span class="v" id="d-exp"></span></div>
+        <div class="kv"><span class="k">生成时间</span><span class="v" id="d-ct"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>加密在设备本地完成 · 与原版生成器完全兼容</footer>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+ * Pure-JS DES-CBC (PKCS7) — 与原 C# CryptHelper 逐字节一致
+ * Key: [82,241,115,234,0,130,13,244]  IV: [1,5,8,17,70,50,82,8]
+ * ============================================================ */
+'use strict';
+
+const PC1 = [
+  57,49,41,33,25,17, 9,
+   1,58,50,42,34,26,18,
+  10, 2,59,51,43,35,27,
+  19,11, 3,60,52,44,36,
+  63,55,47,39,31,23,15,
+   7,62,54,46,38,30,22,
+  14, 6,61,53,45,37,29,
+  21,13, 5,28,20,12, 4
+];
+const SHIFTS = [1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1];
+const PC2 = [
+  14,17,11,24, 1, 5,
+   3,28,15, 6,21,10,
+  23,19,12, 4,26, 8,
+  16, 7,27,20,13, 2,
+  41,52,31,37,47,55,
+  30,40,51,45,33,48,
+  44,49,39,56,34,53,
+  46,42,50,36,29,32
+];
+const IP = [
+  58,50,42,34,26,18,10, 2,
+  60,52,44,36,28,20,12, 4,
+  62,54,46,38,30,22,14, 6,
+  64,56,48,40,32,24,16, 8,
+  57,49,41,33,25,17, 9, 1,
+  59,51,43,35,27,19,11, 3,
+  61,53,45,37,29,21,13, 5,
+  63,55,47,39,31,23,15, 7
+];
+const FP = [
+  40, 8,48,16,56,24,64,32,
+  39, 7,47,15,55,23,63,31,
+  38, 6,46,14,54,22,62,30,
+  37, 5,45,13,53,21,61,29,
+  36, 4,44,12,52,20,60,28,
+  35, 3,43,11,51,19,59,27,
+  34, 2,42,10,50,18,58,26,
+  33, 1,41, 9,49,17,57,25
+];
+const E = [
+  32, 1, 2, 3, 4, 5,
+   4, 5, 6, 7, 8, 9,
+   8, 9,10,11,12,13,
+  12,13,14,15,16,17,
+  16,17,18,19,20,21,
+  20,21,22,23,24,25,
+  24,25,26,27,28,29,
+  28,29,30,31,32, 1
+];
+const P = [
+  16, 7,20,21,29,12,28,17,
+   1,15,23,26, 5,18,31,10,
+   2, 8,24,14,32,27, 3, 9,
+  19,13,30, 6,22,11, 4,25
+];
+const SBOX = [
+  [14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7,
+   0,15,7,4,14,2,13,1,10,6,12,11,9,5,3,8,
+   4,1,14,8,13,6,2,11,15,12,9,7,3,10,5,0,
+   15,12,8,2,4,9,1,7,5,11,3,14,10,0,6,13],
+  [15,1,8,14,6,11,3,4,9,7,2,13,12,0,5,10,
+   3,13,4,7,15,2,8,14,12,0,1,10,6,9,11,5,
+   0,14,7,11,10,4,13,1,5,8,12,6,9,3,2,15,
+   13,8,10,1,3,15,4,2,11,6,7,12,0,5,14,9],
+  [10,0,9,14,6,3,15,5,1,13,12,7,11,4,2,8,
+   13,7,0,9,3,4,6,10,2,8,5,14,12,11,15,1,
+   13,6,4,9,8,15,3,0,11,1,2,12,5,10,14,7,
+   1,10,13,0,6,9,8,7,4,15,14,3,11,5,2,12],
+  [7,13,14,3,0,6,9,10,1,2,8,5,11,12,4,15,
+   13,8,11,5,6,15,0,3,4,7,2,12,1,10,14,9,
+   10,6,9,0,12,11,7,13,15,1,3,14,5,2,8,4,
+   3,15,0,6,10,1,13,8,9,4,5,11,12,7,2,14],
+  [2,12,4,1,7,10,11,6,8,5,3,15,13,0,14,9,
+   14,11,2,12,4,7,13,1,5,0,15,10,3,9,8,6,
+   4,2,1,11,10,13,7,8,15,9,12,5,6,3,0,14,
+   11,8,12,7,1,14,2,13,6,15,0,9,10,4,5,3],
+  [12,1,10,15,9,2,6,8,0,13,3,4,14,7,5,11,
+   10,15,4,2,7,12,9,5,6,1,13,14,0,11,3,8,
+   9,14,15,5,2,8,12,3,7,0,4,10,1,13,11,6,
+   4,3,2,12,9,5,15,10,11,14,1,7,6,0,8,13],
+  [4,11,2,14,15,0,8,13,3,12,9,7,5,10,6,1,
+   13,0,11,7,4,9,1,10,14,3,5,12,2,15,8,6,
+   1,4,11,13,12,3,7,14,10,15,6,8,0,5,9,2,
+   6,11,13,8,1,4,10,7,9,5,0,15,14,2,3,12],
+  [13,2,8,4,6,15,11,1,10,9,3,14,5,0,12,7,
+   1,15,13,8,10,3,7,4,12,5,6,11,0,14,9,2,
+   7,11,4,1,9,12,14,2,0,6,10,13,15,3,5,8,
+   2,1,14,7,4,10,8,13,15,12,9,0,3,5,6,11]
+];
+
+function bytesToBits(bytes) {
+  const bits = new Array(bytes.length * 8);
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    for (let j = 0; j < 8; j++) bits[i * 8 + j] = (b >> (7 - j)) & 1;
+  }
+  return bits;
+}
+function bitsToBytes(bits) {
+  const bytes = new Array(bits.length / 8);
+  for (let i = 0; i < bytes.length; i++) {
+    let b = 0;
+    for (let j = 0; j < 8; j++) b = (b << 1) | bits[i * 8 + j];
+    bytes[i] = b;
+  }
+  return bytes;
+}
+function permute(bits, table) {
+  const out = new Array(table.length);
+  for (let i = 0; i < table.length; i++) out[i] = bits[table[i] - 1];
+  return out;
+}
+function keySchedule(keyBytes) {
+  const k = permute(bytesToBits(keyBytes), PC1);
+  let C = k.slice(0, 28), D = k.slice(28);
+  const subs = [];
+  for (let r = 0; r < 16; r++) {
+    for (let s = 0; s < SHIFTS[r]; s++) { C.push(C.shift()); D.push(D.shift()); }
+    subs.push(permute(C.concat(D), PC2));
+  }
+  return subs;
+}
+function feistel(rBits, kBits) {
+  const x = new Array(48);
+  const ex = permute(rBits, E);
+  for (let i = 0; i < 48; i++) x[i] = ex[i] ^ kBits[i];
+  const sOut = new Array(32);
+  for (let s = 0; s < 8; s++) {
+    const o = s * 6;
+    const row = (x[o] << 1) | x[o + 5];
+    const col = (x[o + 1] << 3) | (x[o + 2] << 2) | (x[o + 3] << 1) | x[o + 4];
+    const v = SBOX[s][row * 16 + col];
+    const p = s * 4;
+    sOut[p] = (v >> 3) & 1; sOut[p + 1] = (v >> 2) & 1;
+    sOut[p + 2] = (v >> 1) & 1; sOut[p + 3] = v & 1;
+  }
+  return permute(sOut, P);
+}
+function desBlock(blockBytes, subs, decrypt) {
+  const bits = permute(bytesToBits(blockBytes), IP);
+  let L = bits.slice(0, 32), R = bits.slice(32);
+  for (let i = 0; i < 16; i++) {
+    const k = subs[decrypt ? 15 - i : i];
+    const f = feistel(R, k);
+    const newR = new Array(32);
+    for (let j = 0; j < 32; j++) newR[j] = L[j] ^ f[j];
+    L = R; R = newR;
+  }
+  return bitsToBytes(permute(R.concat(L), FP));
+}
+function pkcs7Pad(data) {
+  const pad = 8 - (data.length % 8);
+  const out = data.slice();
+  for (let i = 0; i < pad; i++) out.push(pad);
+  return out;
+}
+function pkcs7Unpad(data) {
+  if (data.length === 0 || data.length % 8 !== 0) throw new Error('bad length');
+  const pad = data[data.length - 1];
+  if (pad < 1 || pad > 8) throw new Error('bad padding');
+  for (let i = data.length - pad; i < data.length; i++) if (data[i] !== pad) throw new Error('bad padding');
+  return Uint8Array.from(data.slice(0, data.length - pad));
+}
+
+/** DES-CBC encrypt. data/key/iv: number[] or Uint8Array. Returns Uint8Array. */
+function desCbcEncrypt(data, key, iv) {
+  const subs = keySchedule(key);
+  const padded = pkcs7Pad(Array.from(data));
+  const out = new Uint8Array(padded.length);
+  let prev = Array.from(iv);
+  for (let off = 0; off < padded.length; off += 8) {
+    const blk = new Array(8);
+    for (let i = 0; i < 8; i++) blk[i] = padded[off + i] ^ prev[i];
+    prev = desBlock(blk, subs, false);
+    out.set(prev, off);
+  }
+  return out;
+}
+/** DES-CBC decrypt. Returns Uint8Array (padding removed). Throws on bad padding. */
+function desCbcDecrypt(data, key, iv) {
+  if (data.length === 0 || data.length % 8 !== 0) throw new Error('密文长度必须为 8 字节的倍数');
+  const subs = keySchedule(key);
+  const out = new Uint8Array(data.length);
+  let prev = Array.from(iv);
+  for (let off = 0; off < data.length; off += 8) {
+    const blk = Array.from(data.slice(off, off + 8));
+    const dec = desBlock(blk, subs, true);
+    for (let i = 0; i < 8; i++) out[off + i] = dec[i] ^ prev[i];
+    prev = blk;
+  }
+  return pkcs7Unpad(Array.from(out));
+}
+
+/* ---------- 注册码业务封装 ---------- */
+const LICENSE_KEY = [82, 241, 115, 234, 0, 130, 13, 244];
+const LICENSE_IV = [1, 5, 8, 17, 70, 50, 82, 8];
+const ROLES = ['访客', '工程师', '管理员'];
+
+function bytesToHexUpper(bytes) {
+  let s = '';
+  for (const b of bytes) s += b.toString(16).toUpperCase().padStart(2, '0');
+  return s;
+}
+function hexToBytes(hex) {
+  const h = hex.trim().replace(/\s+/g, '');
+  if (!/^[0-9a-fA-F]+$/.test(h) || h.length % 2 !== 0) throw new Error('不是有效的十六进制文本');
+  const out = new Uint8Array(h.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
+  return out;
+}
+
+/** 生成注册码（与原版 GetRegisterInfo + Encrypt 一致） */
+function generateLicense(machineCode, role, expiresDate, now) {
+  const d = now || new Date();
+  const pad2 = n => String(n).padStart(2, '0');
+  const offMin = -d.getTimezoneOffset();
+  const sign = offMin >= 0 ? '+' : '-';
+  const absOff = Math.abs(offMin);
+  const tz = `${sign}${pad2(Math.floor(absOff / 60))}:${pad2(absOff % 60)}`;
+  const ms = d.getMilliseconds();
+  const frac = ms ? '.' + String(ms).padStart(3, '0').replace(/0+$/, '') : '';
+  const createTime = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}${frac}${tz}`;
+  const reg = {
+    MachineCode: machineCode,
+    Expires: `${expiresDate}T00:00:00`,
+    CreateTime: createTime,
+    Role: role,
+    LastLaunch: '0001-01-01T00:00:00'
+  };
+  const json = JSON.stringify(reg, null, 2);
+  const bytes = desCbcEncrypt(new TextEncoder().encode(json), LICENSE_KEY, LICENSE_IV);
+  return { cipher: bytesToHexUpper(bytes), json };
+}
+
+/** 解密注册码，返回明文 JSON 字符串 */
+function decryptLicense(hexText) {
+  const plain = desCbcDecrypt(hexToBytes(hexText), LICENSE_KEY, LICENSE_IV);
+  return new TextDecoder('gbk').decode(plain);
+}
+
+if (typeof module !== 'undefined') module.exports = {
+  desCbcEncrypt, desCbcDecrypt, generateLicense, decryptLicense,
+  bytesToHexUpper, hexToBytes, LICENSE_KEY, LICENSE_IV
+};
+
+</script>
+<script>
+'use strict';
+/* ================= UI 逻辑 ================= */
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+function copyText(text, okMsg){
+  const done = () => toast(okMsg || '已复制');
+  if (navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ toast('复制失败，请长按文本手动复制'); }
+  document.body.removeChild(ta);
+}
+
+/* ---------- 分段标签 ---------- */
+const seg = $('seg');
+seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  const i = +b.dataset.i;
+  seg.dataset.tab = i;
+  seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  $('page-gen').classList.toggle('on', i === 0);
+  $('page-dec').classList.toggle('on', i === 1);
+}));
+
+/* ---------- 机器码 ---------- */
+const mc = $('mc');
+function mcState(){
+  const v = mc.value.trim();
+  const clean = v.replace(/[^0-9A-Fa-f]/g, '');
+  $('mc-clear').style.display = v ? '' : 'none';
+  $('mc-hint').textContent = `${v.length} / 32`;
+  const box = $('mc-box');
+  box.classList.toggle('good', /^[0-9A-Fa-f]{32}$/.test(v));
+  box.classList.toggle('bad', v.length > 0 && v !== clean);
+  return v;
+}
+mc.addEventListener('input', mcState);
+$('mc-paste').addEventListener('click', async () => {
+  try{
+    const t = await navigator.clipboard.readText();
+    if (t){ mc.value = t.trim(); mcState(); toast('已粘贴'); }
+    else toast('剪贴板为空');
+  }catch(e){ mc.focus(); toast('请长按输入框粘贴'); }
+});
+$('mc-clear').addEventListener('click', () => { mc.value = ''; mcState(); });
+
+/* ---------- 角色 ---------- */
+let role = 0;
+$('roles').querySelectorAll('button').forEach((b, i) => b.addEventListener('click', () => {
+  role = i;
+  $('roles').querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', i === j));
+}));
+
+/* ---------- 日期 ---------- */
+const exp = $('exp');
+function pad2(n){ return String(n).padStart(2, '0'); }
+function fmtDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function addMonths(base, m){
+  const d = new Date(base.getTime());
+  const day = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth() + m);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d;
+}
+const today = new Date();
+const defaultExp = addMonths(today, 6);      // 与原版一致：+6 个月 +1 天
+defaultExp.setDate(defaultExp.getDate() + 1);
+exp.value = fmtDate(defaultExp);
+exp.min = fmtDate(today);
+function hint(){
+  const diff = Math.ceil((new Date(exp.value + 'T00:00:00') - today) / 86400000);
+  $('exp-hint').textContent = exp.value ? (diff >= 0 ? `约 ${diff} 天` : '日期无效') : '';
+}
+exp.addEventListener('input', hint); hint();
+$('chips').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  exp.value = fmtDate(addMonths(today, +b.dataset.m)); hint();
+}));
+
+/* ---------- 生成 ---------- */
+let lastCipher = '', lastFile = '';
+$('gen').addEventListener('click', () => {
+  const machineCode = mc.value.trim().toUpperCase();
+  const user = $('user').value.trim();
+  if (!machineCode) return toast('请填写机器码');
+  if (!user) return toast('请填写用户名');
+  if (!/^[0-9A-F]{32}$/.test(machineCode)) return toast('机器码应为 32 位十六进制');
+  if (!exp.value) return toast('请选择失效日期');
+  if (new Date(exp.value + 'T00:00:00') < new Date(fmtDate(today) + 'T00:00:00')) return toast('失效日期不能早于今天');
+  const roles = ['访客', '工程师', '管理员'];
+  const safeUser = user.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim() || 'user';
+  lastFile = `${machineCode}-${exp.value}-${roles[role]}-${safeUser}.lic`;
+  const out = generateLicense(machineCode, role, exp.value, new Date());
+  lastCipher = out.cipher;
+  $('cipher').textContent = out.cipher;
+  $('file-name').textContent = lastFile;
+  $('result').classList.add('on');
+  setTimeout(() => $('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+  toast('已生成');
+});
+$('copy').addEventListener('click', () => copyText(lastCipher, '密钥已复制'));
+$('download').addEventListener('click', () => {
+  if (!lastCipher) return;
+  const blob = new Blob([lastCipher], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = lastFile;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已开始下载');
+});
+
+/* ---------- 解密 ---------- */
+const decInput = $('dec-input');
+$('dec-file').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { decInput.value = String(r.result).trim(); doDecrypt(); };
+  r.readAsText(f);
+  e.target.value = '';
+});
+const ROLE_NAMES = ['访客', '工程师', '管理员'];
+function doDecrypt(){
+  const err = $('dec-err');
+  err.classList.remove('on');
+  $('dec-result').classList.remove('on');
+  const text = decInput.value.trim().replace(/\s+/g, '');
+  if (!text) return toast('请先粘贴密文');
+  let json;
+  try{ json = decryptLicense(text); }
+  catch(e){
+    err.textContent = '解密失败：' + (e.message === 'bad padding' ? '密文不完整或已损坏' : e.message);
+    err.classList.add('on');
+    return;
+  }
+  let reg;
+  try{ reg = JSON.parse(json); }
+  catch(e){
+    err.textContent = '解密成功但内容不是有效的注册信息';
+    err.classList.add('on');
+    return;
+  }
+  $('d-mc').textContent = reg.MachineCode || '—';
+  const roleIdx = (typeof reg.Role === 'number' && reg.Role >= 0 && reg.Role <= 2) ? reg.Role : 0;
+  const pill = $('d-role');
+  pill.textContent = ROLE_NAMES[roleIdx];
+  pill.className = 'pill ' + ['gray', 'blue', 'violet'][roleIdx];
+  const expStr = String(reg.Expires || '');
+  const m = expStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const dExp = $('d-exp');
+  if (m){
+    const iso = `${m[1]}-${m[2]}-${m[3]}`;
+    const expired = new Date(iso + 'T23:59:59') < new Date();
+    dExp.innerHTML = '';
+    const s1 = document.createElement('span'); s1.textContent = iso + ' ';
+    const s2 = document.createElement('span');
+    s2.className = 'pill ' + (expired ? 'no' : 'ok');
+    s2.textContent = expired ? '已过期' : '有效';
+    dExp.append(s1, s2);
+  } else dExp.textContent = expStr || '—';
+  const ct = String(reg.CreateTime || '').replace('T', ' ');
+  $('d-ct').textContent = ct ? ct.slice(0, 19) : '—';
+  $('dec-result').classList.add('on');
+}
+$('dec-go').addEventListener('click', doDecrypt);
+
+/* ---------- PWA ---------- */
+// 仅在 http(s) 下注册离线缓存（file:// 直接打开时自动跳过）
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
